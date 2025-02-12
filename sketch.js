@@ -6,22 +6,32 @@ import { RGBELoader } from "three/addons/loaders/RGBELoader.js";
 import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
 import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
 import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js";
+import { BokehPass } from "three/addons/postprocessing/BokehPass.js";
+import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
 
 // Scene setup
 const scene = new THREE.Scene();
 scene.background = "#000";
 const camera = new THREE.PerspectiveCamera(
-  75,
+  90,
   window.innerWidth / window.innerHeight,
   0.1,
   1000
 );
-const renderer = new THREE.WebGLRenderer();
+const renderer = new THREE.WebGLRenderer({
+  preserveDrawingBuffer: true,
+  alpha: true, // Enable alpha channel
+});
 renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
 
 // Add orbit controls
 const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.dampingFactor = 0.25;
+controls.enableZoom = false;
+controls.autoRotate = true;
+controls.autoRotateSpeed = 2.0;
 
 // Setup model loader
 const gltfLoader = new GLTFLoader();
@@ -49,28 +59,33 @@ async function loadModel(modelPath) {
     modelCache.data = gltf.scene;
     const transparentMaterial = new THREE.MeshPhysicalMaterial({
       transparent: true,
-      opacity: 0.5,
+      opacity: 0.45,
       roughness: 0,
-      metalness: 0,
+      metalness: 0.0,
       transmission: 1.0,
-      thickness: 10.0,
+      thickness: 1.0,
       ior: 2.5,
       clearcoat: 1.0,
-      clearcoatRoughness: 0.1,
+      clearcoatRoughness: 0.05,
       envMapIntensity: 1.0,
       iridescence: true,
       clearcoat: true,
-      //   iridescenceIOR: 1.34,
+      samples: 16,
+      iridescenceIOR: 1.34,
       //   iridescenceThickness: 40,
       dispersion: 1.0,
+      side: THREE.DoubleSide,
+      envMap: scene.environment,
     });
 
     const flatMaterial = new THREE.MeshStandardMaterial({
       color: 0xffffff,
-      roughness: 0.3,
-      metalness: 0.2,
+      roughness: 0.25,
+      metalness: 0.85,
       side: THREE.DoubleSide,
-      envMapIntensity: 0.0,
+      envMapIntensity: 0,
+      envMap: irrimap,
+      //   map: irrimap,
     });
 
     // Apply custom material to all meshes
@@ -93,20 +108,20 @@ async function loadModel(modelPath) {
 }
 
 // Add dramatic studio lights
-const spotLight1 = new THREE.SpotLight(0xffffff, 50);
-spotLight1.position.set(10, 5, 0);
+const spotLight1 = new THREE.SpotLight(0xffffff, 30);
+spotLight1.position.set(10, 5, 10); // Moved forward
 spotLight1.angle = Math.PI / 6; // Narrow beam
 spotLight1.penumbra = 0.1; // Sharp falloff
 spotLight1.decay = 1.5;
 
-const spotLight2 = new THREE.SpotLight(0xccccff, 40); // Slightly blue backlight
-spotLight2.position.set(-8, 3, -8);
+const spotLight2 = new THREE.SpotLight(0xccccff, 25);
+spotLight2.position.set(-8, 3, 8); // Moved forward
 spotLight2.angle = Math.PI / 8;
 spotLight2.penumbra = 0.2;
 spotLight2.decay = 1.5;
 
-const spotLight3 = new THREE.SpotLight(0xffffcc, 30); // Warm rim light
-spotLight3.position.set(0, -5, -10);
+const spotLight3 = new THREE.SpotLight(0xffffcc, 20);
+spotLight3.position.set(0, -5, 5); // Moved forward
 spotLight3.angle = Math.PI / 8;
 spotLight3.penumbra = 0.2;
 spotLight3.decay = 1.5;
@@ -130,11 +145,17 @@ composer.addPass(renderPass);
 
 const bloomPass = new UnrealBloomPass(
   new THREE.Vector2(window.innerWidth, window.innerHeight),
-  1.5, // strength
-  0.4, // radius
-  0.85 // threshold
+  0.25, // strength
+  0.6, // radius
+  0.5 // threshold
 );
+
 composer.addPass(bloomPass);
+// composer.addPass(bokehPass);
+const outputPass = new OutputPass();
+composer.addPass(outputPass);
+
+// composer.addPass(contrastPass);
 
 // Handle window resize
 window.addEventListener("resize", onWindowResize, false);
@@ -175,18 +196,65 @@ loadModel("./src/case-dispersion.glb").then((model) => {
 const pmremGenerator = new THREE.PMREMGenerator(renderer);
 pmremGenerator.compileEquirectangularShader();
 
-// Load environment map (using regular PNG)
-new THREE.TextureLoader().load("./src/paint.png", function (texture) {
+// Load HDR environment map
+new RGBELoader().load("src/env.hdr", function (texture) {
   texture.mapping = THREE.EquirectangularReflectionMapping;
-  scene.environment = texture;
+  const envMap = pmremGenerator.fromEquirectangular(texture).texture;
+  scene.environment = envMap;
+  texture.dispose();
+  pmremGenerator.dispose();
 });
+
+// Load texture and apply equirectangular mapping
+const irrimap = new THREE.TextureLoader().load(
+  "src/paint.png",
+  function (texture) {
+    texture.mapping = THREE.EquirectangularReflectionMapping;
+    texture.needsUpdate = true;
+    texture.colorSpace = THREE.SRGBColorSpace;
+  }
+);
 
 // Set black background (can be placed near scene setup)
 scene.background = new THREE.Color(0x000000);
+scene.background.alpha = 0;
 
 // Update renderer settings
 renderer.setClearColor(0x000000, 0);
 renderer.physicallyCorrectLights = true;
 renderer.outputEncoding = THREE.sRGBEncoding;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.0; // Adjust this value to control the brightness
+renderer.toneMappingExposure = 1.0;
+
+// Add after renderer setup
+document.getElementById("saveButton").addEventListener("click", function () {
+  // Render at current size
+  composer.render();
+
+  // Convert to blob and download
+  renderer.domElement.toBlob(function (blob) {
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.download = "render.png";
+    link.href = url;
+    link.click();
+    URL.revokeObjectURL(url);
+  }, "image/png");
+});
+
+// Add new iridescent rim lights
+const iridLights = [
+  { color: 0xff1493, pos: [15, 8, -12], intensity: 15 }, // Deep pink
+  { color: 0x4b0082, pos: [-15, 12, -8], intensity: 12 }, // Indigo
+  { color: 0x00ff7f, pos: [12, -10, -15], intensity: 18 }, // Spring green
+  { color: 0x9400d3, pos: [-12, -8, -12], intensity: 10 }, // Violet
+  { color: 0x00ced1, pos: [18, 0, -10], intensity: 20 }, // Turquoise
+].map((config) => {
+  const light = new THREE.SpotLight(config.color, config.intensity);
+  light.position.set(...config.pos);
+  light.angle = Math.PI / 8;
+  light.penumbra = 0.3;
+  light.decay = 1.8;
+  scene.add(light);
+  return light;
+});
