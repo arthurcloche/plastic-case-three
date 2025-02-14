@@ -6,7 +6,8 @@ import { RGBELoader } from "three/addons/loaders/RGBELoader.js";
 import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
 import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
 import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js";
-import { BokehPass } from "three/addons/postprocessing/BokehPass.js";
+import { FXAAShader } from "three/addons/shaders/FXAAShader.js";
+import { ShaderPass } from "three/addons/postprocessing/ShaderPass.js";
 import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
 
 // Scene setup
@@ -149,9 +150,17 @@ const bloomPass = new UnrealBloomPass(
   0.6, // radius
   0.5 // threshold
 );
+const fxaaPass = new ShaderPass(FXAAShader);
+const pixelRatio = renderer.getPixelRatio();
+
+fxaaPass.material.uniforms["resolution"].value.x =
+  1 / (window.innerWidth * pixelRatio);
+fxaaPass.material.uniforms["resolution"].value.y =
+  1 / (window.innerHeight * pixelRatio);
 
 composer.addPass(bloomPass);
 // composer.addPass(bokehPass);
+composer.addPass(fxaaPass);
 const outputPass = new OutputPass();
 composer.addPass(outputPass);
 
