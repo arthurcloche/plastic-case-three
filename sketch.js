@@ -61,22 +61,24 @@ async function loadModel(modelPath) {
     const transparentMaterial = new THREE.MeshPhysicalMaterial({
       transparent: true,
       opacity: 0.75,
-      roughness: 0.125,
-      metalness: 0.1,
+      roughness: 0.25,
+      metalness: 0.9,
       transmission: 1.0,
       thickness: 1.0,
-      ior: 4.5,
+      ior: 1.444,
       clearcoat: 1.0,
       clearcoatRoughness: 0.05,
       envMapIntensity: 1.0,
       iridescence: true,
       clearcoat: true,
       samples: 16,
-      iridescenceIOR: 1.34,
+
+      iridescenceIOR: 1.444,
       //   iridescenceThickness: 40,
       dispersion: 1.0,
       side: THREE.DoubleSide,
       envMap: scene.environment,
+      map: irrimap,
     });
 
     const flatMaterial = new THREE.MeshStandardMaterial({
@@ -92,11 +94,7 @@ async function loadModel(modelPath) {
     // Apply custom material to all meshes
     gltf.scene.traverse((child) => {
       if (child.isMesh) {
-        // if (child.name.includes("case")) {
         child.material = transparentMaterial;
-        // } else {
-        //   child.material = flatMaterial;
-        // }
       }
     });
 
@@ -146,8 +144,8 @@ composer.addPass(renderPass);
 
 const bloomPass = new UnrealBloomPass(
   new THREE.Vector2(window.innerWidth, window.innerHeight),
-  0.25, // strength
-  0.6, // radius
+  0.5, // strength
+  0.8, // radius
   0.5 // threshold
 );
 const fxaaPass = new ShaderPass(FXAAShader);
