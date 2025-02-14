@@ -59,12 +59,12 @@ async function loadModel(modelPath) {
     modelCache.data = gltf.scene;
     const transparentMaterial = new THREE.MeshPhysicalMaterial({
       transparent: true,
-      opacity: 0.45,
-      roughness: 0,
-      metalness: 0.0,
+      opacity: 0.75,
+      roughness: 0.125,
+      metalness: 0.1,
       transmission: 1.0,
       thickness: 1.0,
-      ior: 2.5,
+      ior: 4.5,
       clearcoat: 1.0,
       clearcoatRoughness: 0.05,
       envMapIntensity: 1.0,
@@ -91,11 +91,11 @@ async function loadModel(modelPath) {
     // Apply custom material to all meshes
     gltf.scene.traverse((child) => {
       if (child.isMesh) {
-        if (child.name.includes("case")) {
-          child.material = transparentMaterial;
-        } else {
-          child.material = flatMaterial;
-        }
+        // if (child.name.includes("case")) {
+        child.material = transparentMaterial;
+        // } else {
+        //   child.material = flatMaterial;
+        // }
       }
     });
 
@@ -174,8 +174,7 @@ function animate() {
 }
 animate();
 
-// Usage example:
-loadModel("./src/case-dispersion.glb").then((model) => {
+loadModel("./src/dispersion-test.glb").then((model) => {
   if (model) {
     // Optional: Center and scale model
     const box = new THREE.Box3().setFromObject(model);
@@ -187,7 +186,7 @@ loadModel("./src/case-dispersion.glb").then((model) => {
     model.position.z = -center.z;
 
     const maxDim = Math.max(size.x, size.y, size.z);
-    const scale = 5 / maxDim; // Scale to fit in a 2x2x2 box
+    const scale = 6 / maxDim; // Scale to fit in a 2x2x2 box
     model.scale.setScalar(scale);
   }
 });
