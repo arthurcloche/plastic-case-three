@@ -64,11 +64,11 @@ const modelCache = {
 const transparentMaterial = new THREE.MeshPhysicalMaterial({
   transparent: true,
   opacity: 0.75,
-  roughness: 0.8,
+  roughness: 0.2,
   metalness: 0.1,
   transmission: 1.0,
   thickness: 1.0,
-  ior: 4.5,
+  ior: 2.5,
   clearcoat: 1.0,
   clearcoatRoughness: 0.05,
   envMapIntensity: 1.0,
@@ -203,7 +203,7 @@ const bloomPass = new UnrealBloomPass(
   new THREE.Vector2(window.innerWidth, window.innerHeight),
   0.4, // strength
   0.5, // radius
-  0.4 // threshold
+  0.8 // threshold
 );
 const fxaaPass = new ShaderPass(FXAAShader);
 const pixelRatio = renderer.getPixelRatio();
