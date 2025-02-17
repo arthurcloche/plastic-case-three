@@ -61,6 +61,27 @@ const modelCache = {
 //   window.innerHeight
 // );
 
+const transparentMaterial = new THREE.MeshPhysicalMaterial({
+  transparent: true,
+  opacity: 0.75,
+  roughness: 0.8,
+  metalness: 0.1,
+  transmission: 1.0,
+  thickness: 1.0,
+  ior: 4.5,
+  clearcoat: 1.0,
+  clearcoatRoughness: 0.05,
+  envMapIntensity: 1.0,
+  iridescence: true,
+  clearcoat: true,
+  samples: 16,
+  iridescenceIOR: 1.34,
+  iridescenceThickness: 40,
+  dispersion: 1.0,
+  side: THREE.DoubleSide,
+  envMap: scene.environment,
+});
+
 const transmissionMaterial = new MeshTransmissionMaterial({
   samples: 6,
   transmissionSampler: false,
@@ -79,13 +100,13 @@ const transmissionMaterial = new MeshTransmissionMaterial({
   metalness: 0.2,
   transmission: 1.0,
   thickness: 1.0,
-  ior: 1.4,
+  ior: 4.4,
   clearcoat: 1.0,
   clearcoatRoughness: 0.0,
   // envMapIntensity: 0.125,
-  iridescence: false,
-  iridescenceIOR: 1.44,
-  dispersion: 1.0,
+  iridescence: true,
+  iridescenceIOR: 1.34,
+  dispersion: 0.0,
   side: THREE.DoubleSide,
   // map: irrimap,
 });
@@ -106,7 +127,7 @@ async function loadModel(modelPath) {
     // Apply custom material to all meshes
     gltf.scene.traverse((child) => {
       if (child.isMesh) {
-        child.material = transmissionMaterial;
+        child.material = transparentMaterial;
       }
     });
     scene.add(gltf.scene);
