@@ -14,7 +14,7 @@ import { MeshTransmissionMaterial } from "./transmission.js";
 // Scene setup
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(
-  90,
+  80,
   window.innerWidth / window.innerHeight,
   0.1,
   1000
@@ -43,7 +43,7 @@ dracoLoader.setDecoderPath(
 );
 gltfLoader.setDRACOLoader(dracoLoader);
 const irrimap = new THREE.TextureLoader().load(
-  "src/paint.png",
+  "src/spectrum-01.png",
   function (texture) {
     texture.mapping = THREE.EquirectangularReflectionMapping;
     texture.needsUpdate = true;
@@ -63,53 +63,53 @@ const modelCache = {
 
 const transparentMaterial = new THREE.MeshPhysicalMaterial({
   transparent: true,
-  opacity: 0.75,
-  roughness: 0.2,
-  metalness: 0.1,
-  transmission: 1.0,
-  thickness: 1.0,
-  ior: 2.5,
+  opacity: 0.85,
+  roughness: 0.125,
+  metalness: 0.05,
+  transmission: 1,
+  thickness: 100.0,
+  ior: 2.333,
   clearcoat: 1.0,
-  clearcoatRoughness: 0.05,
+  clearcoatRoughness: 0.25,
   envMapIntensity: 1.0,
   iridescence: true,
   clearcoat: true,
-  samples: 16,
   iridescenceIOR: 1.34,
-  iridescenceThickness: 40,
-  dispersion: 1.0,
+  iridescenceThickness: 0,
+  dispersion: 8.5,
   side: THREE.DoubleSide,
   envMap: scene.environment,
-});
-
-const transmissionMaterial = new MeshTransmissionMaterial({
-  samples: 6,
-  transmissionSampler: false,
-  chromaticAberration: 1.0,
-  anisotropicBlur: 0.8,
-  time: 0,
-  distortion: 0.05,
-  distortionScale: 0.5,
-  temporalDistortion: 0.0,
-  buffer: irrimap,
-  // Physical material properties
-  transparent: true,
-  opacity: 0.75,
-  color: new THREE.Color("white"),
-  roughness: 0.2,
-  metalness: 0.2,
-  transmission: 1.0,
-  thickness: 1.0,
-  ior: 4.4,
-  clearcoat: 1.0,
-  clearcoatRoughness: 0.0,
-  // envMapIntensity: 0.125,
-  iridescence: true,
-  iridescenceIOR: 1.34,
-  dispersion: 0.0,
-  side: THREE.DoubleSide,
   // map: irrimap,
 });
+
+// const transmissionMaterial = new MeshTransmissionMaterial({
+//   samples: 6,
+//   transmissionSampler: false,
+//   chromaticAberration: 1.0,
+//   anisotropicBlur: 0.8,
+//   time: 0,
+//   distortion: 0.05,
+//   distortionScale: 0.5,
+//   temporalDistortion: 0.0,
+//   buffer: irrimap,
+//   // Physical material properties
+//   transparent: true,
+//   opacity: 0.75,
+//   color: new THREE.Color("white"),
+//   roughness: 0.2,
+//   metalness: 0.2,
+//   transmission: 1.0,
+//   thickness: 1.0,
+//   ior: 4.4,
+//   clearcoat: 1.0,
+//   clearcoatRoughness: 0.0,
+//   // envMapIntensity: 0.125,
+//   iridescence: true,
+//   iridescenceIOR: 1.34,
+//   dispersion: 0.0,
+//   side: THREE.DoubleSide,
+//   // map: irrimap,
+// });
 
 // console.log(transparentMaterial);
 
@@ -117,7 +117,7 @@ const transmissionMaterial = new MeshTransmissionMaterial({
 async function loadModel(modelPath) {
   if (modelCache.data) {
     // Create 6 instances with different rotations and y-offsets
-    for (let i = 0; i < 6; i++) {
+    for (let i = 0; i < 5; i++) {
       const instance = modelCache.data.clone();
       instance.rotation.y = (Math.PI / 3) * i;
       instance.position.y = (-3 + i) * 2; // Offset each instance by 2 units
@@ -139,7 +139,7 @@ async function loadModel(modelPath) {
     });
 
     // Create 6 instances with different rotations and y-offsets
-    for (let i = 0; i < 6; i++) {
+    for (let i = 0; i < 5; i++) {
       const instance = gltf.scene.clone();
       instance.rotation.y = (Math.PI / 3) * i;
       instance.position.y = (-2 + i) * 2; // Offset each instance by 2 units
@@ -269,7 +269,7 @@ renderer.toneMappingExposure = 1.0;
 
 function animate() {
   requestAnimationFrame(animate);
-  transmissionMaterial.uniforms.time.value += 1 / 60;
+  // transmissionMaterial.uniforms.time.value += 1 / 60;
   controls.update();
   composer.render();
 }
