@@ -10,15 +10,16 @@ import { FXAAShader } from "three/addons/shaders/FXAAShader.js";
 import { ShaderPass } from "three/addons/postprocessing/ShaderPass.js";
 import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
 
+import { MeshTransmissionMaterial } from "./transmission.js";
 // Scene setup
 const scene = new THREE.Scene();
-scene.background = "#000";
 const camera = new THREE.PerspectiveCamera(
   90,
   window.innerWidth / window.innerHeight,
   0.1,
   1000
 );
+camera.position.z = 5;
 const renderer = new THREE.WebGLRenderer({
   preserveDrawingBuffer: true,
   alpha: true, // Enable alpha channel
@@ -41,12 +42,55 @@ dracoLoader.setDecoderPath(
   "https://www.gstatic.com/draco/versioned/decoders/1.5.6/"
 );
 gltfLoader.setDRACOLoader(dracoLoader);
-
+const irrimap = new THREE.TextureLoader().load(
+  "src/paint.png",
+  function (texture) {
+    texture.mapping = THREE.EquirectangularReflectionMapping;
+    texture.needsUpdate = true;
+    texture.colorSpace = THREE.SRGBColorSpace;
+  }
+);
 // Model cache
 const modelCache = {
   data: null,
   promise: null,
 };
+
+// const renderTarget = new THREE.WebGLRenderTarget(
+//   window.innerWidth,
+//   window.innerHeight
+// );
+
+const transmissionMaterial = new MeshTransmissionMaterial({
+  samples: 6,
+  transmissionSampler: false,
+  chromaticAberration: 1.0,
+  anisotropicBlur: 0.8,
+  time: 0,
+  distortion: 0.05,
+  distortionScale: 0.5,
+  temporalDistortion: 0.0,
+  buffer: irrimap,
+  // Physical material properties
+  transparent: true,
+  opacity: 0.75,
+  color: new THREE.Color("white"),
+  roughness: 0.2,
+  metalness: 0.2,
+  transmission: 1.0,
+  thickness: 1.0,
+  ior: 1.4,
+  clearcoat: 1.0,
+  clearcoatRoughness: 0.0,
+  // envMapIntensity: 0.125,
+  iridescence: false,
+  iridescenceIOR: 1.44,
+  dispersion: 1.0,
+  side: THREE.DoubleSide,
+  // map: irrimap,
+});
+
+// console.log(transparentMaterial);
 
 // Load model function
 async function loadModel(modelPath) {
@@ -58,46 +102,13 @@ async function loadModel(modelPath) {
   try {
     const gltf = await gltfLoader.loadAsync(modelPath);
     modelCache.data = gltf.scene;
-    const transparentMaterial = new THREE.MeshPhysicalMaterial({
-      transparent: true,
-      opacity: 0.75,
-      roughness: 0.25,
-      metalness: 0.9,
-      transmission: 1.0,
-      thickness: 1.0,
-      ior: 1.444,
-      clearcoat: 1.0,
-      clearcoatRoughness: 0.05,
-      envMapIntensity: 1.0,
-      iridescence: true,
-      clearcoat: true,
-      samples: 16,
-
-      iridescenceIOR: 1.444,
-      //   iridescenceThickness: 40,
-      dispersion: 1.0,
-      side: THREE.DoubleSide,
-      envMap: scene.environment,
-      map: irrimap,
-    });
-
-    const flatMaterial = new THREE.MeshStandardMaterial({
-      color: 0xffffff,
-      roughness: 0.25,
-      metalness: 0.85,
-      side: THREE.DoubleSide,
-      envMapIntensity: 0,
-      envMap: irrimap,
-      //   map: irrimap,
-    });
 
     // Apply custom material to all meshes
     gltf.scene.traverse((child) => {
       if (child.isMesh) {
-        child.material = transparentMaterial;
+        child.material = transmissionMaterial;
       }
     });
-
     scene.add(gltf.scene);
     return gltf.scene;
   } catch (error) {
@@ -106,6 +117,8 @@ async function loadModel(modelPath) {
   }
 }
 
+const ambient = new THREE.AmbientLight(0x404040, 0.3); // Darker ambient
+scene.add(ambient);
 // Add dramatic studio lights
 const spotLight1 = new THREE.SpotLight(0xffffff, 30);
 spotLight1.position.set(10, 5, 10); // Moved forward
@@ -125,17 +138,24 @@ spotLight3.angle = Math.PI / 8;
 spotLight3.penumbra = 0.2;
 spotLight3.decay = 1.5;
 
-scene.add(spotLight1);
-scene.add(spotLight2);
-scene.add(spotLight3);
-
-// Reduce ambient light intensity for more contrast
-// scene.remove(light); // Remove the original directional light
-const ambient = new THREE.AmbientLight(0x404040, 0.3); // Darker ambient
 scene.add(ambient);
 
-// Position camera
-camera.position.z = 5;
+// Add new iridescent rim lights
+const iridLights = [
+  { color: 0xff1493, pos: [15, 8, -12].map((num) => num * 1), intensity: 15 }, // Deep pink
+  { color: 0x4b0082, pos: [-15, 12, -8].map((num) => num * 1), intensity: 12 }, // Indigo
+  { color: 0x00ff7f, pos: [12, -10, -15].map((num) => num * 1), intensity: 18 }, // Spring green
+  { color: 0x9400d3, pos: [-12, -8, -12].map((num) => num * 1), intensity: 10 }, // Violet
+  { color: 0x00ced1, pos: [18, 0, -10].map((num) => num * 1), intensity: 20 }, // Turquoise
+].map((config) => {
+  const light = new THREE.SpotLight(config.color, config.intensity);
+  light.position.set(...config.pos);
+  light.angle = Math.PI / 8;
+  light.penumbra = 0.3;
+  light.decay = 1.8;
+  scene.add(light);
+  return light;
+});
 
 // Setup post-processing
 const composer = new EffectComposer(renderer);
@@ -144,9 +164,9 @@ composer.addPass(renderPass);
 
 const bloomPass = new UnrealBloomPass(
   new THREE.Vector2(window.innerWidth, window.innerHeight),
-  0.5, // strength
-  0.8, // radius
-  0.5 // threshold
+  0.4, // strength
+  0.5, // radius
+  0.4 // threshold
 );
 const fxaaPass = new ShaderPass(FXAAShader);
 const pixelRatio = renderer.getPixelRatio();
@@ -155,14 +175,11 @@ fxaaPass.material.uniforms["resolution"].value.x =
   1 / (window.innerWidth * pixelRatio);
 fxaaPass.material.uniforms["resolution"].value.y =
   1 / (window.innerHeight * pixelRatio);
-
-composer.addPass(bloomPass);
-// composer.addPass(bokehPass);
-composer.addPass(fxaaPass);
 const outputPass = new OutputPass();
-composer.addPass(outputPass);
+composer.addPass(fxaaPass);
+composer.addPass(bloomPass);
 
-// composer.addPass(contrastPass);
+composer.addPass(outputPass);
 
 // Handle window resize
 window.addEventListener("resize", onWindowResize, false);
@@ -172,14 +189,6 @@ function onWindowResize() {
   renderer.setSize(window.innerWidth, window.innerHeight);
   composer.setSize(window.innerWidth, window.innerHeight);
 }
-
-// Animation loop
-function animate() {
-  requestAnimationFrame(animate);
-  controls.update();
-  composer.render();
-}
-animate();
 
 loadModel("./src/dispersion-test.glb").then((model) => {
   if (model) {
@@ -211,17 +220,6 @@ new RGBELoader().load("src/env.hdr", function (texture) {
   pmremGenerator.dispose();
 });
 
-// Load texture and apply equirectangular mapping
-const irrimap = new THREE.TextureLoader().load(
-  "src/paint.png",
-  function (texture) {
-    texture.mapping = THREE.EquirectangularReflectionMapping;
-    texture.needsUpdate = true;
-    texture.colorSpace = THREE.SRGBColorSpace;
-  }
-);
-
-// Set black background (can be placed near scene setup)
 scene.background = new THREE.Color(0x000000);
 scene.background.alpha = 0;
 
@@ -232,11 +230,18 @@ renderer.outputEncoding = THREE.sRGBEncoding;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.0;
 
+function animate() {
+  requestAnimationFrame(animate);
+  transmissionMaterial.uniforms.time.value += 1 / 60;
+  controls.update();
+  composer.render();
+}
+animate();
+
 // Add after renderer setup
 document.getElementById("saveButton").addEventListener("click", function () {
   // Render at current size
   composer.render();
-
   // Convert to blob and download
   renderer.domElement.toBlob(function (blob) {
     const url = URL.createObjectURL(blob);
@@ -246,21 +251,4 @@ document.getElementById("saveButton").addEventListener("click", function () {
     link.click();
     URL.revokeObjectURL(url);
   }, "image/png");
-});
-
-// Add new iridescent rim lights
-const iridLights = [
-  { color: 0xff1493, pos: [15, 8, -12], intensity: 15 }, // Deep pink
-  { color: 0x4b0082, pos: [-15, 12, -8], intensity: 12 }, // Indigo
-  { color: 0x00ff7f, pos: [12, -10, -15], intensity: 18 }, // Spring green
-  { color: 0x9400d3, pos: [-12, -8, -12], intensity: 10 }, // Violet
-  { color: 0x00ced1, pos: [18, 0, -10], intensity: 20 }, // Turquoise
-].map((config) => {
-  const light = new THREE.SpotLight(config.color, config.intensity);
-  light.position.set(...config.pos);
-  light.angle = Math.PI / 8;
-  light.penumbra = 0.3;
-  light.decay = 1.8;
-  scene.add(light);
-  return light;
 });
