@@ -116,7 +116,14 @@ const transmissionMaterial = new MeshTransmissionMaterial({
 // Load model function
 async function loadModel(modelPath) {
   if (modelCache.data) {
-    scene.add(modelCache.data);
+    // Create 6 instances with different rotations and y-offsets
+    for (let i = 0; i < 6; i++) {
+      const instance = modelCache.data.clone();
+      instance.rotation.y = (Math.PI / 3) * i;
+      instance.position.y = (-3 + i) * 2; // Offset each instance by 2 units
+      instance.scale.setScalar(0.5); // Scale down each instance
+      scene.add(instance);
+    }
     return modelCache.data;
   }
 
@@ -130,7 +137,16 @@ async function loadModel(modelPath) {
         child.material = transparentMaterial;
       }
     });
-    scene.add(gltf.scene);
+
+    // Create 6 instances with different rotations and y-offsets
+    for (let i = 0; i < 6; i++) {
+      const instance = gltf.scene.clone();
+      instance.rotation.y = (Math.PI / 3) * i;
+      instance.position.y = (-2 + i) * 2; // Offset each instance by 2 units
+      instance.scale.setScalar(4); // Scale down each instance
+      scene.add(instance);
+    }
+
     return gltf.scene;
   } catch (error) {
     console.error("Error loading model:", error);
